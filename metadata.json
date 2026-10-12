@@ -1,0 +1,8 @@
+{
+  "name": "Haven - Addiction & Expense Tracker",
+  "description": "A privacy-focused, 100% local-first addiction recovery and expense tracker with encrypted SQLite storage, urge relief, biometric protection, and financial analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
