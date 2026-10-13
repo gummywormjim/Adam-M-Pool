@@ -33,7 +33,6 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-          cache: 'gradle'
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -41,73 +40,30 @@ jobs:
           channel: 'stable'
           cache: false
 
-      - name: Verify Flutter Installation
-        run: flutter --version
-
-      - name: Generate Android Platform Safely
+      - name: Generate Android Scaffolding
         run: |
-          # Create clean Android scaffolding in temporary isolated dir to avoid repo naming conflicts
           rm -rf android
           rm -rf /tmp/temp_scaffold
           flutter create /tmp/temp_scaffold --platforms=android --org=com.habitvault --project-name=habitvault
           cp -r /tmp/temp_scaffold/android ./
           rm -rf /tmp/temp_scaffold
-
-          # Inject permissions & queries for 988 Lifeline (phone dialer, sms, browser)
-          python3 -c "
-          manifest_path = 'android/app/src/main/AndroidManifest.xml'
-          try:
-              with open(manifest_path, 'r') as f:
-                  content = f.read()
-
-              injected = '''
-    <uses-permission android:name=\"android.permission.INTERNET\"/>
-    <queries>
-        <intent>
-            <action android:name=\"android.intent.action.DIAL\" />
-            <data android:scheme=\"tel\" />
-        </intent>
-        <intent>
-            <action android:name=\"android.intent.action.VIEW\" />
-            <data android:scheme=\"sms\" />
-        </intent>
-        <intent>
-            <action android:name=\"android.intent.action.VIEW\" />
-            <data android:scheme=\"https\" />
-        </intent>
-    </queries>
-</manifest>'''
-
-              if '<queries>' not in content and '</manifest>' in content:
-                  content = content.replace('</manifest>', injected)
-                  with open(manifest_path, 'w') as f:
-                      f.write(content)
-                  print('Successfully injected 988 Crisis Hotline permissions & queries into AndroidManifest.xml')
-          except Exception as e:
-              print(f'Manifest patch warning: {e}')
-          "
+          python3 scripts/patch_manifest.py
 
       - name: Install Dependencies
         run: flutter pub get
 
       - name: Build Android APK
         run: |
-          # Build release APK (falls back to debug if release key not configured)
           flutter build apk --release --no-tree-shake-icons || flutter build apk --debug --no-tree-shake-icons
 
       - name: Prepare APK Release Artifacts
         run: |
           mkdir -p release-output
-          # Locate generated APK
           FOUND_APK=$(find build/ -type f -name "*.apk" | head -n 1)
           echo "Found APK at: $FOUND_APK"
-
           if [ -n "$FOUND_APK" ] && [ -f "$FOUND_APK" ]; then
             cp "$FOUND_APK" "release-output/HabitVault-v1.0.${{ github.run_number }}.apk"
             cp "$FOUND_APK" "release-output/app-release.apk"
-          else
-            echo "Warning: No APK found under build/! Listing directory:"
-            find . -name "*.apk" || true
           fi
           ls -la release-output/
 
@@ -135,11 +91,11 @@ jobs:
             ---
             ### ✨ Included Features:
             - **🚨 24/7 Crisis Support Bar (988 Lifeline)**: Direct tap-to-call and tap-to-SMS emergency helpline.
-            - **⚡ Centered URGE SOS**: Prominently positioned under Daily Affirmations for rapid access to craving delays & grounding exercises.
-            - **🎨 Customizable Icons & Colors**: Full palette of icons and colors for every tracked habit/substance.
-            - **📊 Spending History & Persistence**: Tracked spending across sessions with full ledger history and net savings.
-            - **💼 Monthly Income Impact Tracker**: Real-time freedom calculation and labor hour metrics.
-            - **🔐 Vault Passcode & Auto-Lock**: Biometric/PIN protection upon app opening.
+            - **⚡ Centered URGE SOS**: Prominently positioned under Daily Affirmations.
+            - **🎨 Customizable Icons & Colors**: Full palette of icons and colors for every tracked habit.
+            - **📊 Spending History & Persistence**: Persistent ledger history and net savings.
+            - **💼 Monthly Income Impact Tracker**: Real-time freedom calculation and salary impact.
+            - **🔐 Vault Passcode & Auto-Lock**: Passcode protection upon opening.
           files: release-output/*.apk
           draft: false
           prerelease: false
