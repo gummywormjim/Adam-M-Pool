@@ -23,8 +23,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx2048m"
-      ANDROID_HOME: "/usr/local/lib/android/sdk"
-      ANDROID_SDK_ROOT: "/usr/local/lib/android/sdk"
 
     steps:
       - name: Checkout Code
@@ -42,32 +40,25 @@ jobs:
           channel: 'stable'
           cache: false
 
-      - name: Configure Android SDK & Disable Unused Desktop Toolchains
+      - name: Configure Flutter for Android
         run: |
-          echo "Configuring Android SDK: $ANDROID_HOME"
-          flutter config --android-sdk "$ANDROID_HOME"
           flutter config --no-analytics
-          # Disable Linux desktop checks to prevent GTK library requirement errors
           flutter config --no-enable-linux-desktop
           flutter config --no-enable-windows-desktop
           flutter config --no-enable-macos-desktop
           flutter config --enable-android
-          # Automatically accept Android SDK licenses
-          yes | flutter doctor --android-licenses 2>/dev/null || true
 
       - name: Generate Android Platform
         run: |
           rm -rf android
-          # Create Android scaffolding in isolated habitvault package dir to avoid repo folder naming issues
-          rm -rf /tmp/habitvault
-          flutter create --platforms=android --org=com.habitvault /tmp/habitvault
-          cp -r /tmp/habitvault/android ./
-          rm -rf /tmp/habitvault
-
-          # Ensure gradlew has executable permissions
+          flutter create --platforms=android --org=com.habitvault . || {
+            echo "In-place create fallback executing..."
+            rm -rf /tmp/hv_android
+            flutter create --platforms=android --org=com.habitvault /tmp/hv_android
+            cp -r /tmp/hv_android/android ./
+            rm -rf /tmp/hv_android
+          }
           chmod +x android/gradlew 2>/dev/null || true
-
-          # Inject permissions for 988 Lifeline
           python3 scripts/patch_manifest.py
 
       - name: Install Dependencies
@@ -76,16 +67,14 @@ jobs:
       - name: Build Android APK
         run: |
           chmod +x android/gradlew 2>/dev/null || true
-          echo "Building Android APK..."
           flutter build apk --release --no-tree-shake-icons || {
-            echo "Release build exited non-zero, falling back to debug APK build..."
+            echo "Release build exited non-zero, building debug APK as fallback..."
             flutter build apk --debug --no-tree-shake-icons
           }
 
       - name: Prepare APK Release Artifacts
         run: |
           mkdir -p release-output
-          # Collect all generated APK files
           find build/ -type f -name "*.apk" -exec cp {} release-output/ \; || true
           FOUND_APK=$(find release-output -type f -name "*.apk" | head -n 1)
           if [ -n "$FOUND_APK" ]; then
