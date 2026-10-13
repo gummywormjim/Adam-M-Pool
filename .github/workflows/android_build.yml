@@ -23,6 +23,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx2048m"
+      ANDROID_HOME: "/usr/local/lib/android/sdk"
+      ANDROID_SDK_ROOT: "/usr/local/lib/android/sdk"
 
     steps:
       - name: Checkout Code
@@ -40,15 +42,28 @@ jobs:
           channel: 'stable'
           cache: false
 
-      - name: Verify Flutter Installation
-        run: flutter --version
+      - name: Configure Android SDK & Accept Licenses
+        run: |
+          echo "Configuring Android SDK: $ANDROID_HOME"
+          flutter config --android-sdk "$ANDROID_HOME"
+          flutter config --no-analytics
+          # Automatically accept Android SDK licenses
+          yes | flutter doctor --android-licenses 2>/dev/null || true
+          flutter doctor -v
 
       - name: Generate Android Platform
         run: |
           rm -rf android
-          # Official command to add android platform to existing Flutter project
-          flutter create --platforms=android --org=com.habitvault .
+          # Create Android scaffolding in isolated habitvault package dir to avoid repo folder naming issues
+          rm -rf /tmp/habitvault
+          flutter create --platforms=android --org=com.habitvault /tmp/habitvault
+          cp -r /tmp/habitvault/android ./
+          rm -rf /tmp/habitvault
+
+          # Ensure gradlew has executable permissions
           chmod +x android/gradlew 2>/dev/null || true
+
+          # Inject permissions for 988 Lifeline
           python3 scripts/patch_manifest.py
 
       - name: Install Dependencies
@@ -57,9 +72,16 @@ jobs:
       - name: Build Android APK
         run: |
           chmod +x android/gradlew 2>/dev/null || true
-          flutter build apk --release --no-tree-shake-icons || {
-            echo "Release build returned non-zero, building debug APK as fallback..."
-            flutter build apk --debug --no-tree-shake-icons
+          echo "Starting Flutter Release APK build..."
+          flutter build apk --release --no-tree-shake-icons > build.log 2>&1 || {
+            echo "::warning::Release build returned non-zero. Displaying last 80 lines of build log:"
+            tail -n 80 build.log
+            echo "Attempting fallback debug build..."
+            flutter build apk --debug --no-tree-shake-icons > debug_build.log 2>&1 || {
+              echo "::error::Debug build also failed. Displaying last 80 lines of debug build log:"
+              tail -n 80 debug_build.log
+              exit 1
+            }
           }
 
       - name: Prepare APK Release Artifacts
