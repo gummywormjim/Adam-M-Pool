@@ -43,20 +43,12 @@ jobs:
       - name: Verify Flutter Installation
         run: flutter --version
 
-      - name: Generate Android Scaffolding
+      - name: Generate Android Platform
         run: |
           rm -rf android
-          # Generate clean Android platform matching habitvault project name
-          rm -rf /tmp/habitvault
-          mkdir -p /tmp/habitvault
-          flutter create /tmp/habitvault --platforms=android --org=com.habitvault --project-name=habitvault
-          cp -r /tmp/habitvault/android ./
-          rm -rf /tmp/habitvault
-
-          # Ensure gradlew has executable permissions
+          # Official command to add android platform to existing Flutter project
+          flutter create --platforms=android --org=com.habitvault .
           chmod +x android/gradlew 2>/dev/null || true
-
-          # Inject 988 Lifeline call/SMS permissions into AndroidManifest.xml
           python3 scripts/patch_manifest.py
 
       - name: Install Dependencies
@@ -66,20 +58,22 @@ jobs:
         run: |
           chmod +x android/gradlew 2>/dev/null || true
           flutter build apk --release --no-tree-shake-icons || {
-            echo "Release build returned non-zero, trying debug build as fallback..."
+            echo "Release build returned non-zero, building debug APK as fallback..."
             flutter build apk --debug --no-tree-shake-icons
           }
 
       - name: Prepare APK Release Artifacts
         run: |
           mkdir -p release-output
-          FOUND_APK=$(find build/ -type f -name "*.apk" | head -n 1)
-          echo "Found APK at: $FOUND_APK"
-          if [ -n "$FOUND_APK" ] && [ -f "$FOUND_APK" ]; then
+          # Collect all generated APK files
+          find build/ -type f -name "*.apk" -exec cp {} release-output/ \; || true
+          FOUND_APK=$(find release-output -type f -name "*.apk" | head -n 1)
+          if [ -n "$FOUND_APK" ]; then
+            echo "Found APK: $FOUND_APK"
+            cp "$FOUND_APK" release-output/app-release.apk
             cp "$FOUND_APK" "release-output/HabitVault-v1.0.${{ github.run_number }}.apk"
-            cp "$FOUND_APK" "release-output/app-release.apk"
           else
-            echo "Error: No APK file was generated."
+            echo "Error: No APK found in build/ directory."
             find build/ || true
             exit 1
           fi
