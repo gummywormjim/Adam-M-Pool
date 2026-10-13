@@ -29,7 +29,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Java Development Kit (JDK 17)
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '17'
@@ -40,13 +40,23 @@ jobs:
           channel: 'stable'
           cache: false
 
+      - name: Verify Flutter Installation
+        run: flutter --version
+
       - name: Generate Android Scaffolding
         run: |
           rm -rf android
-          rm -rf /tmp/temp_scaffold
-          flutter create /tmp/temp_scaffold --platforms=android --org=com.habitvault --project-name=habitvault
-          cp -r /tmp/temp_scaffold/android ./
-          rm -rf /tmp/temp_scaffold
+          # Generate clean Android platform matching habitvault project name
+          rm -rf /tmp/habitvault
+          mkdir -p /tmp/habitvault
+          flutter create /tmp/habitvault --platforms=android --org=com.habitvault --project-name=habitvault
+          cp -r /tmp/habitvault/android ./
+          rm -rf /tmp/habitvault
+
+          # Ensure gradlew has executable permissions
+          chmod +x android/gradlew 2>/dev/null || true
+
+          # Inject 988 Lifeline call/SMS permissions into AndroidManifest.xml
           python3 scripts/patch_manifest.py
 
       - name: Install Dependencies
@@ -54,7 +64,11 @@ jobs:
 
       - name: Build Android APK
         run: |
-          flutter build apk --release --no-tree-shake-icons || flutter build apk --debug --no-tree-shake-icons
+          chmod +x android/gradlew 2>/dev/null || true
+          flutter build apk --release --no-tree-shake-icons || {
+            echo "Release build returned non-zero, trying debug build as fallback..."
+            flutter build apk --debug --no-tree-shake-icons
+          }
 
       - name: Prepare APK Release Artifacts
         run: |
@@ -64,6 +78,10 @@ jobs:
           if [ -n "$FOUND_APK" ] && [ -f "$FOUND_APK" ]; then
             cp "$FOUND_APK" "release-output/HabitVault-v1.0.${{ github.run_number }}.apk"
             cp "$FOUND_APK" "release-output/app-release.apk"
+          else
+            echo "Error: No APK file was generated."
+            find build/ || true
+            exit 1
           fi
           ls -la release-output/
 
