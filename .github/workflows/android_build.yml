@@ -42,14 +42,18 @@ jobs:
           channel: 'stable'
           cache: false
 
-      - name: Configure Android SDK & Accept Licenses
+      - name: Configure Android SDK & Disable Unused Desktop Toolchains
         run: |
           echo "Configuring Android SDK: $ANDROID_HOME"
           flutter config --android-sdk "$ANDROID_HOME"
           flutter config --no-analytics
+          # Disable Linux desktop checks to prevent GTK library requirement errors
+          flutter config --no-enable-linux-desktop
+          flutter config --no-enable-windows-desktop
+          flutter config --no-enable-macos-desktop
+          flutter config --enable-android
           # Automatically accept Android SDK licenses
           yes | flutter doctor --android-licenses 2>/dev/null || true
-          flutter doctor -v
 
       - name: Generate Android Platform
         run: |
@@ -72,16 +76,10 @@ jobs:
       - name: Build Android APK
         run: |
           chmod +x android/gradlew 2>/dev/null || true
-          echo "Starting Flutter Release APK build..."
-          flutter build apk --release --no-tree-shake-icons > build.log 2>&1 || {
-            echo "::warning::Release build returned non-zero. Displaying last 80 lines of build log:"
-            tail -n 80 build.log
-            echo "Attempting fallback debug build..."
-            flutter build apk --debug --no-tree-shake-icons > debug_build.log 2>&1 || {
-              echo "::error::Debug build also failed. Displaying last 80 lines of debug build log:"
-              tail -n 80 debug_build.log
-              exit 1
-            }
+          echo "Building Android APK..."
+          flutter build apk --release --no-tree-shake-icons || {
+            echo "Release build exited non-zero, falling back to debug APK build..."
+            flutter build apk --debug --no-tree-shake-icons
           }
 
       - name: Prepare APK Release Artifacts
