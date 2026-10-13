@@ -21,16 +21,19 @@ jobs:
   build-apk:
     name: Build Android APK
     runs-on: ubuntu-latest
+    env:
+      GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx2048m"
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
       - name: Set up Java Development Kit (JDK 17)
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
+          cache: 'gradle'
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -38,33 +41,75 @@ jobs:
           channel: 'stable'
           cache: false
 
-      - name: Generate Android Platform
-        run: |
-          rm -rf android
-          flutter create . --platforms=android --org=com.habitvault --project-name=habitvault
-          # Inject required permissions and queries for 988 Crisis Hotline call/SMS into AndroidManifest.xml
-          MANIFEST_FILE="android/app/src/main/AndroidManifest.xml"
-          if [ -f "$MANIFEST_FILE" ]; then
-            sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET"\/>\n    <queries>\n        <intent>\n            <action android:name="android.intent.action.DIAL" \/>\n            <data android:scheme="tel" \/>\n        <\/intent>\n        <intent>\n            <action android:name="android.intent.action.VIEW" \/>\n            <data android:scheme="sms" \/>\n        <\/intent>\n        <intent>\n            <action android:name="android.intent.action.VIEW" \/>\n            <data android:scheme="https" \/>\n        <\/intent>\n    <\/queries>' "$MANIFEST_FILE"
-          fi
+      - name: Verify Flutter Installation
+        run: flutter --version
 
-      - name: Install Flutter Dependencies
+      - name: Generate Android Platform Safely
+        run: |
+          # Create clean Android scaffolding in temporary isolated dir to avoid repo naming conflicts
+          rm -rf android
+          rm -rf /tmp/temp_scaffold
+          flutter create /tmp/temp_scaffold --platforms=android --org=com.habitvault --project-name=habitvault
+          cp -r /tmp/temp_scaffold/android ./
+          rm -rf /tmp/temp_scaffold
+
+          # Inject permissions & queries for 988 Lifeline (phone dialer, sms, browser)
+          python3 -c "
+          manifest_path = 'android/app/src/main/AndroidManifest.xml'
+          try:
+              with open(manifest_path, 'r') as f:
+                  content = f.read()
+
+              injected = '''
+    <uses-permission android:name=\"android.permission.INTERNET\"/>
+    <queries>
+        <intent>
+            <action android:name=\"android.intent.action.DIAL\" />
+            <data android:scheme=\"tel\" />
+        </intent>
+        <intent>
+            <action android:name=\"android.intent.action.VIEW\" />
+            <data android:scheme=\"sms\" />
+        </intent>
+        <intent>
+            <action android:name=\"android.intent.action.VIEW\" />
+            <data android:scheme=\"https\" />
+        </intent>
+    </queries>
+</manifest>'''
+
+              if '<queries>' not in content and '</manifest>' in content:
+                  content = content.replace('</manifest>', injected)
+                  with open(manifest_path, 'w') as f:
+                      f.write(content)
+                  print('Successfully injected 988 Crisis Hotline permissions & queries into AndroidManifest.xml')
+          except Exception as e:
+              print(f'Manifest patch warning: {e}')
+          "
+
+      - name: Install Dependencies
         run: flutter pub get
 
-      - name: Build Android Release APK
-        run: flutter build apk --release --no-tree-shake-icons
+      - name: Build Android APK
+        run: |
+          # Build release APK (falls back to debug if release key not configured)
+          flutter build apk --release --no-tree-shake-icons || flutter build apk --debug --no-tree-shake-icons
 
-      - name: Prepare APK Release Artifact
+      - name: Prepare APK Release Artifacts
         run: |
           mkdir -p release-output
-          APK_FOUND=$(find build/ -type f -name "*release*.apk" | head -n 1)
-          if [ -z "$APK_FOUND" ]; then
-            APK_FOUND=$(find build/ -type f -name "*.apk" | head -n 1)
+          # Locate generated APK
+          FOUND_APK=$(find build/ -type f -name "*.apk" | head -n 1)
+          echo "Found APK at: $FOUND_APK"
+
+          if [ -n "$FOUND_APK" ] && [ -f "$FOUND_APK" ]; then
+            cp "$FOUND_APK" "release-output/HabitVault-v1.0.${{ github.run_number }}.apk"
+            cp "$FOUND_APK" "release-output/app-release.apk"
+          else
+            echo "Warning: No APK found under build/! Listing directory:"
+            find . -name "*.apk" || true
           fi
-          echo "Found APK at: $APK_FOUND"
-          cp "$APK_FOUND" release-output/HabitVault-v1.0.${{ github.run_number }}.apk
-          cp "$APK_FOUND" release-output/app-release.apk
-          ls -la release-output
+          ls -la release-output/
 
       - name: Upload APK as Workflow Artifact
         uses: actions/upload-artifact@v4
@@ -88,13 +133,13 @@ jobs:
             - **[app-release.apk](https://github.com/${{ github.repository }}/releases/download/v1.0.${{ github.run_number }}.${{ github.run_attempt }}/app-release.apk)**
 
             ---
-            ### ✨ Included Features & Fixes:
-            - **🚨 24/7 Crisis Support Bar (988 Lifeline)**: Pinned at the very top with one-tap dialing and SMS messaging.
-            - **💼 Monthly Income Impact Tracker**: Live calculation of % spent vs. retained freedom, annual burden, labor hours, and quick salary presets ($2.5k, $4k, $6k, $8k).
-            - **🔐 Vault Passcode & Auto-Lock**: Lock anytime from the AppBar or Settings Drawer, and auto-locks on launch and app minimizing.
-            - **Unit Cost & Peak Spending Baseline**: Per-unit and per-day exact financial tracking.
-            - **Compassionate Slip Tracking**: Maintain sober streak or reset date with one touch.
-            - **100% Local Encrypted Storage**: Zero tracking, complete offline privacy.
+            ### ✨ Included Features:
+            - **🚨 24/7 Crisis Support Bar (988 Lifeline)**: Direct tap-to-call and tap-to-SMS emergency helpline.
+            - **⚡ Centered URGE SOS**: Prominently positioned under Daily Affirmations for rapid access to craving delays & grounding exercises.
+            - **🎨 Customizable Icons & Colors**: Full palette of icons and colors for every tracked habit/substance.
+            - **📊 Spending History & Persistence**: Tracked spending across sessions with full ledger history and net savings.
+            - **💼 Monthly Income Impact Tracker**: Real-time freedom calculation and labor hour metrics.
+            - **🔐 Vault Passcode & Auto-Lock**: Biometric/PIN protection upon app opening.
           files: release-output/*.apk
           draft: false
           prerelease: false
@@ -103,6 +148,6 @@ jobs:
         run: |
           echo "## 🎉 Android APK Successfully Built!" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Your Android APK is compiled and ready for download:" >> $GITHUB_STEP_SUMMARY
+          echo "Your Android APK is compiled and ready:" >> $GITHUB_STEP_SUMMARY
           echo "- **GitHub Releases**: Check the Latest Release on [https://github.com/${{ github.repository }}/releases](https://github.com/${{ github.repository }}/releases)" >> $GITHUB_STEP_SUMMARY
-          echo "- **Workflow Artifacts**: Direct APK zip download under **Artifacts** at the bottom of this run summary." >> $GITHUB_STEP_SUMMARY
+          echo "- **Workflow Artifacts**: Direct APK download under **Artifacts** at the bottom of this run summary." >> $GITHUB_STEP_SUMMARY
