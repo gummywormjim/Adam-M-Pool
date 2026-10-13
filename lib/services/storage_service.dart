@@ -15,15 +15,24 @@ class StorageService {
   static const String _keyThemeMode = 'vault_theme_mode';
 
   static SharedPreferences? _prefs;
-  // In-memory fallback map in case SharedPreferences is unavailable or during test
+
+  // In-memory fallback map in case SharedPreferences is temporarily unavailable
   static final Map<String, dynamic> _fallbackMemory = {};
 
   static Future<void> init() async {
     try {
       _prefs = await SharedPreferences.getInstance();
     } catch (e) {
-      debugPrint('SharedPreferences init fallback: $e');
+      debugPrint('SharedPreferences init error: $e');
     }
+  }
+
+  static Future<SharedPreferences?> _ensurePrefs() async {
+    if (_prefs != null) return _prefs;
+    try {
+      _prefs = await SharedPreferences.getInstance();
+    } catch (_) {}
+    return _prefs;
   }
 
   // Security PIN
@@ -37,9 +46,10 @@ class StorageService {
   static Future<void> setPin(String pin) async {
     _fallbackMemory[_keyPin] = pin;
     _fallbackMemory[_keySecurityEnabled] = pin.isNotEmpty;
-    if (_prefs != null) {
-      await _prefs!.setString(_keyPin, pin);
-      await _prefs!.setBool(_keySecurityEnabled, pin.isNotEmpty);
+    final prefs = await _ensurePrefs();
+    if (prefs != null) {
+      await prefs.setString(_keyPin, pin);
+      await prefs.setBool(_keySecurityEnabled, pin.isNotEmpty);
     }
   }
 
@@ -53,8 +63,9 @@ class StorageService {
 
   static Future<void> setSecurityEnabled(bool enabled) async {
     _fallbackMemory[_keySecurityEnabled] = enabled;
-    if (_prefs != null) {
-      await _prefs!.setBool(_keySecurityEnabled, enabled);
+    final prefs = await _ensurePrefs();
+    if (prefs != null) {
+      await prefs.setBool(_keySecurityEnabled, enabled);
     }
   }
 
@@ -72,11 +83,12 @@ class StorageService {
 
   static Future<void> setMonthlyIncome(double? income) async {
     _fallbackMemory[_keyMonthlyIncome] = income;
-    if (_prefs != null) {
+    final prefs = await _ensurePrefs();
+    if (prefs != null) {
       if (income == null) {
-        await _prefs!.remove(_keyMonthlyIncome);
+        await prefs.remove(_keyMonthlyIncome);
       } else {
-        await _prefs!.setDouble(_keyMonthlyIncome, income);
+        await prefs.setDouble(_keyMonthlyIncome, income);
       }
     }
   }
@@ -91,8 +103,9 @@ class StorageService {
 
   static Future<void> setCurrency(String currency) async {
     _fallbackMemory[_keyCurrency] = currency;
-    if (_prefs != null) {
-      await _prefs!.setString(_keyCurrency, currency);
+    final prefs = await _ensurePrefs();
+    if (prefs != null) {
+      await prefs.setString(_keyCurrency, currency);
     }
   }
 
@@ -106,8 +119,9 @@ class StorageService {
 
   static Future<void> setFirstTimeLaunch(bool isFirstTime) async {
     _fallbackMemory[_keyIsFirstTime] = isFirstTime;
-    if (_prefs != null) {
-      await _prefs!.setBool(_keyIsFirstTime, isFirstTime);
+    final prefs = await _ensurePrefs();
+    if (prefs != null) {
+      await prefs.setBool(_keyIsFirstTime, isFirstTime);
     }
   }
 
@@ -121,8 +135,9 @@ class StorageService {
 
   static Future<void> setThemeMode(String mode) async {
     _fallbackMemory[_keyThemeMode] = mode;
-    if (_prefs != null) {
-      await _prefs!.setString(_keyThemeMode, mode);
+    final prefs = await _ensurePrefs();
+    if (prefs != null) {
+      await prefs.setString(_keyThemeMode, mode);
     }
   }
 
@@ -155,7 +170,7 @@ class StorageService {
         costPerDay: 12.50,
         costPerUnit: 12.50,
         quitDate: DateTime.now(),
-        iconName: 'flame',
+        iconName: 'smoke',
         colorHex: '#EF4444',
         isActive: true,
       ),
@@ -165,8 +180,9 @@ class StorageService {
   static Future<void> saveSubstances(List<Substance> substances) async {
     final rawJson = jsonEncode(substances.map((s) => s.toMap()).toList());
     _fallbackMemory[_keySubstances] = rawJson;
-    if (_prefs != null) {
-      await _prefs!.setString(_keySubstances, rawJson);
+    final prefs = await _ensurePrefs();
+    if (prefs != null) {
+      await prefs.setString(_keySubstances, rawJson);
     }
   }
 
@@ -189,14 +205,16 @@ class StorageService {
         debugPrint('Error parsing stored expenses: $e');
       }
     }
+
     return [];
   }
 
   static Future<void> saveExpenses(List<ExpenseLog> expenses) async {
     final rawJson = jsonEncode(expenses.map((e) => e.toMap()).toList());
     _fallbackMemory[_keyExpenses] = rawJson;
-    if (_prefs != null) {
-      await _prefs!.setString(_keyExpenses, rawJson);
+    final prefs = await _ensurePrefs();
+    if (prefs != null) {
+      await prefs.setString(_keyExpenses, rawJson);
     }
   }
 }

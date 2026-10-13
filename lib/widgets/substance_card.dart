@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import '../models/substance.dart';
+import '../utils/substance_icons.dart';
 
 class SubstanceCard extends StatelessWidget {
   final Substance substance;
   final String currency;
   final VoidCallback onQuickAddUnit;
-  final VoidCallback onLogCustomExpense;
   final VoidCallback onTapCard;
 
   const SubstanceCard({
@@ -13,7 +13,6 @@ class SubstanceCard extends StatelessWidget {
     required this.substance,
     this.currency = '\$',
     required this.onQuickAddUnit,
-    required this.onLogCustomExpense,
     required this.onTapCard,
   });
 
@@ -21,6 +20,8 @@ class SubstanceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final iconData = SubstanceIconRegistry.getIcon(substance.iconName);
+    final color = SubstanceIconRegistry.getColor(substance.colorHex);
 
     return Card(
       elevation: 0,
@@ -41,75 +42,75 @@ class SubstanceCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 1. Action Buttons Row — Positioned ABOVE the substance name so they line up in mobile view
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF10B981),
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      onPressed: onQuickAddUnit,
-                      icon: const Icon(Icons.add, size: 16),
-                      label: Text(
-                        '+1 ${substance.unitName} ($currency${substance.costPerUnit.toStringAsFixed(2)})',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                        overflow: TextOverflow.ellipsis,
-                      ),
+              // 1. Quick Unit Action Button (+1 Unit) — Full width, no "+Log" button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF10B981),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isDark ? const Color(0xFF2D333F) : const Color(0xFFE5E7EB),
-                      foregroundColor: isDark ? Colors.white : Colors.black87,
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                  onPressed: onQuickAddUnit,
+                  icon: const Icon(Icons.add_circle_outline, size: 18),
+                  label: Text(
+                    '+1 ${substance.unitName.toUpperCase()} ($currency${substance.costPerUnit.toStringAsFixed(2)})',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      letterSpacing: 0.3,
                     ),
-                    onPressed: onLogCustomExpense,
-                    icon: const Icon(Icons.edit_note, size: 16),
-                    label: const Text(
-                      '+Log',
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
-                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ],
+                ),
               ),
+
               const SizedBox(height: 14),
 
-              // 2. Substance Name & Cost Metrics Row
+              // 2. Substance Name & Metrics with Customizable Icon and Color
               Row(
                 children: [
                   Container(
-                    width: 40,
-                    height: 40,
+                    width: 44,
+                    height: 44,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEF4444).withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(12),
+                      color: color.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: color.withOpacity(0.35),
+                        width: 1.5,
+                      ),
                     ),
-                    child: const Icon(Icons.local_fire_department, color: Color(0xFFEF4444), size: 22),
+                    child: Icon(iconData, color: color, size: 24),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          substance.name,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.white : Colors.black87,
-                          ),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                substance.name,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? Colors.white : Colors.black87,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Icon(
+                              Icons.settings_outlined,
+                              size: 16,
+                              color: isDark ? Colors.white38 : Colors.black38,
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 2),
                         Row(
@@ -137,6 +138,7 @@ class SubstanceCard extends StatelessWidget {
                   ),
                 ],
               ),
+
               const SizedBox(height: 14),
 
               // 3. Sober Streak & Money Saved Grid

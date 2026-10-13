@@ -25,12 +25,12 @@ class _OnboardingTutorialDialogState extends State<OnboardingTutorialDialog> {
           'We\'ve started your tracker with Cigarettes as your default substance and a clean sober streak set to 0 days. Everything is saved locally on your device with complete privacy.',
     },
     {
-      'title': 'How to Add Spending',
-      'subtitle': 'Two fast ways to record expenses and track your habit costs.',
+      'title': 'Quick Logging & Tracking',
+      'subtitle': 'Fast, compassionate tracking designed for real life.',
       'icon': Icons.add_circle_outline,
       'color': const Color(0xFF3B82F6),
       'content':
-          '1. Tap "+1 Unit" above any substance to instantly log a pack, can, or bottle.\n\n2. Tap "+Log" to record custom spending, past dates, or notes in your ledger.',
+          '1. Tap "+1 Unit" above any tracked substance to instantly record a pack, drink, or slip.\n\n2. Tap any substance card to customize its name, unit cost, icon, and accent color at any time.',
     },
     {
       'title': 'Peak Baseline vs. Unit Cost',

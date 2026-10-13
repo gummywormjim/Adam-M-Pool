@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Clock, ChevronRight, Sparkles, TrendingUp, Calendar, Check } from 'lucide-react';
+import { Plus, Clock, ChevronRight, TrendingUp, Check } from 'lucide-react';
 import { Substance } from '../types';
 import { MonochromeIcon } from './icons/MonochromeIcon';
 
@@ -8,7 +8,7 @@ interface SubstanceCardProps {
   savedAmount: number;
   spentAmount: number;
   currency: string;
-  onQuickLog: (substance: Substance) => void;
+  onQuickLog?: (substance: Substance) => void;
   onQuickAddUnit?: (substance: Substance) => void;
   onOpenDetails: (substance: Substance) => void;
   onEdit?: (substance: Substance) => void;
@@ -20,19 +20,21 @@ export const SubstanceCard: React.FC<SubstanceCardProps> = ({
   savedAmount,
   spentAmount,
   currency,
-  onQuickLog,
   onQuickAddUnit,
   onOpenDetails,
   isDarkMode,
 }) => {
   const [isJustAdded, setIsJustAdded] = useState(false);
+
   // Calculate clean streak if quit_date exists
   const getStreakDisplay = () => {
     if (!substance.quit_date) {
       return { days: 0, text: 'Tracking Reduction' };
     }
+
     const diffMs = Date.now() - new Date(substance.quit_date).getTime();
     if (diffMs < 0) return { days: 0, text: 'Quitting today' };
+
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
     const diffHours = Math.floor((diffMs / (1000 * 60 * 60)) % 24);
 
@@ -42,6 +44,7 @@ export const SubstanceCard: React.FC<SubstanceCardProps> = ({
       }
       return { days: 0, text: `0 days (${diffHours}h clean)` };
     }
+
     return { days: diffDays, text: `${diffDays}d ${diffHours}h clean` };
   };
 
@@ -58,7 +61,10 @@ export const SubstanceCard: React.FC<SubstanceCardProps> = ({
   const handleQuickTap = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!onQuickAddUnit || !hasSetCost) return;
+
+    setIsJustAdded(true);
     onQuickAddUnit(substance);
+    setTimeout(() => setIsJustAdded(false), 1200);
   };
 
   const cardBgClass = isDarkMode
@@ -70,16 +76,16 @@ export const SubstanceCard: React.FC<SubstanceCardProps> = ({
       className={`rounded-2xl border p-4 sm:p-5 transition-all shadow-sm flex flex-col justify-between ${cardBgClass}`}
     >
       <div>
-        {/* 1. Quick Action Buttons — positioned ABOVE the Tracked substance name so they line up cleanly across cards in mobile view */}
-        <div className={`grid ${hasSetCost && onQuickAddUnit ? 'grid-cols-2' : 'grid-cols-1'} gap-2 mb-3.5`}>
-          {hasSetCost && onQuickAddUnit && (
+        {/* 1. Quick Action Button — Full width above the tracked substance name */}
+        {hasSetCost && onQuickAddUnit && (
+          <div className="w-full mb-3.5">
             <button
               type="button"
               onClick={handleQuickTap}
               disabled={isJustAdded}
               aria-label={`Quick add 1 ${unitName} to ${substance.name} (${currency}${unitCost.toFixed(2)})`}
               title={`Quick add 1 ${unitName} at set cost: ${currency}${unitCost.toFixed(2)}`}
-              className={`min-h-[44px] px-2.5 sm:px-3 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 flex items-center justify-center gap-1.5 border shadow-2xs cursor-pointer ${
+              className={`w-full min-h-[44px] px-3 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 flex items-center justify-center gap-1.5 border shadow-2xs cursor-pointer ${
                 isJustAdded
                   ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400 font-extrabold'
                   : isDarkMode
@@ -95,22 +101,14 @@ export const SubstanceCard: React.FC<SubstanceCardProps> = ({
               ) : (
                 <>
                   <Plus className="w-4 h-4 stroke-[2.5] text-emerald-500 dark:text-emerald-400" />
-                  <span className="truncate">+1 {unitName ? unitName.charAt(0).toUpperCase() + unitName.slice(1) : 'Unit'}</span>
+                  <span className="truncate">
+                    +1 {unitName ? unitName.charAt(0).toUpperCase() + unitName.slice(1) : 'Unit'} ({currency}{unitCost.toFixed(2)})
+                  </span>
                 </>
               )}
             </button>
-          )}
-
-          <button
-            onClick={() => onQuickLog(substance)}
-            aria-label={`Log expense for ${substance.name}`}
-            className="min-h-[44px] px-3.5 py-2 rounded-xl text-xs font-bold transition-transform active:scale-95 flex items-center justify-center gap-1.5 shadow-sm text-white cursor-pointer"
-            style={{ backgroundColor: substance.color_hex }}
-          >
-            <Plus className="w-4 h-4 stroke-[2.5]" />
-            <span>+Log</span>
-          </button>
-        </div>
+          </div>
+        )}
 
         {/* 2. Tracked Substance Header: Icon, Name, Peak Baseline & Unit Cost */}
         <div className="flex items-start gap-3 mb-3">

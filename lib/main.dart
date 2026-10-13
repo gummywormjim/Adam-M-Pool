@@ -13,6 +13,7 @@ import 'widgets/monthly_income_impact_card.dart';
 import 'widgets/urge_sos_dialog.dart';
 import 'widgets/add_substance_dialog.dart';
 import 'widgets/substance_detail_dialog.dart';
+import 'widgets/expense_ledger_dialog.dart';
 import 'widgets/settings_drawer.dart';
 
 void main() async {
@@ -240,6 +241,25 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _openSecuritySetup() {
+    showDialog(
+      context: context,
+      builder: (ctx) => InitialSecuritySetupDialog(
+        onComplete: (newPin) {
+          Navigator.of(ctx).pop();
+          widget.onPinChange(newPin);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Security PIN set! Your vault will auto-lock upon launch or when locked.'),
+              backgroundColor: Color(0xFF10B981),
+            ),
+          );
+        },
+        onSkip: () => Navigator.of(ctx).pop(),
+      ),
+    );
+  }
+
   void _showTutorialModal() {
     showDialog(
       context: context,
@@ -289,7 +309,28 @@ class _HomeScreenState extends State<HomeScreen> {
             widget.substances.removeWhere((s) => s.id == substance.id);
           });
           widget.onSubstancesUpdated();
-          Navigator.of(context).pop();
+        },
+      ),
+    );
+  }
+
+  void _openExpenseLedger() {
+    showDialog(
+      context: context,
+      builder: (ctx) => ExpenseLedgerDialog(
+        expenses: widget.expenses,
+        currency: widget.currency,
+        onDeleteExpense: (expenseId) {
+          setState(() {
+            widget.expenses.removeWhere((e) => e.id == expenseId);
+          });
+          widget.onExpensesUpdated();
+        },
+        onClearAll: () {
+          setState(() {
+            widget.expenses.clear();
+          });
+          widget.onExpensesUpdated();
         },
       ),
     );
@@ -298,6 +339,10 @@ class _HomeScreenState extends State<HomeScreen> {
   double get _totalSaved => widget.substances.fold(0.0, (acc, s) => acc + s.moneySaved);
   double get _totalSpent => widget.expenses.fold(0.0, (acc, e) => acc + e.amount);
   double get _peakDailyBaseline => widget.substances.fold(0.0, (acc, s) => acc + s.costPerDay);
+  double get _netSaved {
+    final net = _totalSaved - _totalSpent;
+    return net < 0 ? 0.0 : net;
+  }
 
   // Quick Add 1 Unit with Slip Check-In Modal
   Future<void> _handleQuickAddUnit(Substance substance) async {
@@ -346,78 +391,12 @@ class _HomeScreenState extends State<HomeScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(snackMessage),
-        backgroundColor: decision == SlipDecision.resetSoberDate ? Colors.amber[800] : const Color(0xFF10B981),
+        backgroundColor:
+            decision == SlipDecision.resetSoberDate ? Colors.amber[800] : const Color(0xFF10B981),
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 3),
       ),
     );
-  }
-
-  // Manual Custom Expense Log
-  Future<void> _handleLogCustomExpense(Substance substance) async {
-    final amountController = TextEditingController(text: substance.costPerUnit.toStringAsFixed(2));
-    final noteController = TextEditingController();
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Log Spend for ${substance.name}'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: amountController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: InputDecoration(
-                labelText: 'Amount (${widget.currency})',
-                border: const OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: noteController,
-              decoration: const InputDecoration(
-                labelText: 'Note (Optional)',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981), foregroundColor: Colors.white),
-          onPressed: () => Navigator.of(context).pop(true),
-          child: const Text('Log Expense'),
-        ),
-      ],
-    );
-
-    if (confirmed == true) {
-      final amount = double.tryParse(amountController.text) ?? substance.costPerUnit;
-      final expense = ExpenseLog(
-        id: DateTime.now().millisecondsSinceEpoch,
-        substanceId: substance.id,
-        substanceName: substance.name,
-        amount: amount,
-        note: noteController.text.trim(),
-        timestamp: DateTime.now(),
-      );
-
-      setState(() {
-        widget.expenses.insert(0, expense);
-      });
-      widget.onExpensesUpdated();
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Logged ${widget.currency}${amount.toStringAsFixed(2)} for ${substance.name}'),
-          backgroundColor: const Color(0xFF10B981),
-        ),
-      );
-    }
   }
 
   void _resetToDefaults() {
@@ -431,6 +410,9 @@ class _HomeScreenState extends State<HomeScreen> {
           costPerDay: 12.50,
           costPerUnit: 12.50,
           quitDate: DateTime.now(),
+          iconName: 'smoke',
+          colorHex: '#EF4444',
+          isActive: true,
         ),
       );
       widget.expenses.clear();
@@ -482,25 +464,18 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
         actions: [
-          // Urge SOS Button
-          TextButton.icon(
-            style: TextButton.styleFrom(
-              backgroundColor: const Color(0xFF10B981).withOpacity(0.15),
-              foregroundColor: const Color(0xFF10B981),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            onPressed: _openUrgeSos,
-            icon: const Icon(Icons.spa, size: 16),
-            label: const Text('Urge SOS', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-          ),
-          const SizedBox(width: 6),
-          // Lock Button
+          // Lock / Security Button
           if (widget.pin.isNotEmpty)
             IconButton(
-              tooltip: 'Lock Vault',
-              icon: const Icon(Icons.lock_outline),
+              tooltip: 'Lock Vault Now',
+              icon: const Icon(Icons.lock_outline, color: Color(0xFF10B981)),
               onPressed: widget.onLock,
+            )
+          else
+            IconButton(
+              tooltip: 'Set Security PIN',
+              icon: const Icon(Icons.lock_open_outlined, color: Colors.amber),
+              onPressed: _openSecuritySetup,
             ),
           // Tutorial button
           IconButton(
@@ -510,159 +485,231 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // 1. PINNED AT THE VERY TOP: 24/7 Immediate Crisis Support Bar (988 Lifeline)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
-            child: CrisisSupportBar(isDarkMode: isDark),
-          ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // 1. PINNED AT THE VERY TOP: 24/7 Immediate Crisis Support Bar (988 Lifeline)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+              child: CrisisSupportBar(isDarkMode: isDark),
+            ),
 
-          // Scrollable body content
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 6, 16, 24),
-              children: [
-                // 2. Daily Affirmation Banner
-                DailyAffirmationBanner(isDarkMode: isDark),
-                const SizedBox(height: 14),
+            // Scrollable body content
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 6, 16, 24),
+                children: [
+                  // 2. Daily Affirmation Banner
+                  DailyAffirmationBanner(isDarkMode: isDark),
+                  const SizedBox(height: 12),
 
-                // 3. Financial Summary Card
-                Container(
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: isDark
-                          ? [const Color(0xFF1A222D), const Color(0xFF141920)]
-                          : [const Color(0xFFF0FDF4), const Color(0xFFDCFCE7)],
-                    ),
-                    borderRadius: BorderRadius.circular(22),
-                    border: Border.all(
-                      color: isDark ? const Color(0xFF2B374A) : const Color(0xFFBBF7D0),
-                      width: 1,
+                  // 3. CENTERED URGE SOS BUTTON UNDER DAILY AFFIRMATIONS
+                  Center(
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFEF4444),
+                        foregroundColor: Colors.white,
+                        elevation: 3,
+                        shadowColor: const Color(0xFFEF4444).withOpacity(0.4),
+                        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                      ),
+                      onPressed: _openUrgeSos,
+                      icon: const Icon(Icons.flash_on, size: 20),
+                      label: const Text(
+                        'URGE SOS',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
                     ),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'TOTAL RECOVERED SAVINGS',
-                            style: TextStyle(
-                              fontSize: 11,
-                              letterSpacing: 0.6,
-                              fontWeight: FontWeight.bold,
-                              color: isDark ? Colors.white54 : Colors.black54,
+                  const SizedBox(height: 16),
+
+                  // 4. Financial Summary Card with Spending Tracking over Time
+                  Container(
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: isDark
+                            ? [const Color(0xFF1A222D), const Color(0xFF141920)]
+                            : [const Color(0xFFF0FDF4), const Color(0xFFDCFCE7)],
+                      ),
+                      borderRadius: BorderRadius.circular(22),
+                      border: Border.all(
+                        color: isDark ? const Color(0xFF2B374A) : const Color(0xFFBBF7D0),
+                        width: 1,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'TOTAL RECOVERED SAVINGS',
+                              style: TextStyle(
+                                fontSize: 11,
+                                letterSpacing: 0.6,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? Colors.white54 : Colors.black54,
+                              ),
                             ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF10B981).withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Text(
+                                'Active',
+                                style: TextStyle(
+                                  color: Color(0xFF10B981),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '${widget.currency}${_totalSaved.toStringAsFixed(2)}',
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : Colors.black87,
                           ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF10B981).withOpacity(0.2),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Peak Baseline: ${widget.currency}${_peakDailyBaseline.toStringAsFixed(2)}/day',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: isDark ? Colors.white70 : Colors.black87,
+                              ),
+                            ),
+                            InkWell(
+                              onTap: _openExpenseLedger,
                               borderRadius: BorderRadius.circular(8),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      'Logged Spend: ${widget.currency}${_totalSpent.toStringAsFixed(2)}',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: _totalSpent > 0 ? const Color(0xFFEF4444) : (isDark ? Colors.white70 : Colors.black87),
+                                        decoration: TextDecoration.underline,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    const Icon(Icons.receipt_long, size: 14, color: Color(0xFFEF4444)),
+                                  ],
+                                ),
+                              ),
                             ),
-                            child: const Text(
-                              'Active',
-                              style: TextStyle(color: Color(0xFF10B981), fontSize: 11, fontWeight: FontWeight.bold),
-                            ),
+                          ],
+                        ),
+                        if (_totalSpent > 0) ...[
+                          const SizedBox(height: 8),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Net Preserved Freedom:',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: isDark ? Colors.white54 : Colors.black54,
+                                ),
+                              ),
+                              Text(
+                                '${widget.currency}${_netSaved.toStringAsFixed(2)}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF10B981),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
-                      ),
-                      const SizedBox(height: 6),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // 5. Fully Interactive Monthly Income Impact Card
+                  MonthlyIncomeImpactCard(
+                    substances: widget.substances,
+                    peakDailyBaseline: _peakDailyBaseline,
+                    currency: widget.currency,
+                    isDarkMode: isDark,
+                    onIncomeChanged: () => setState(() {}),
+                  ),
+
+                  // 6. Tracked Substances Header & Add Button
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
                       Text(
-                        '${widget.currency}${_totalSaved.toStringAsFixed(2)}',
+                        'Tracked Substances',
                         style: TextStyle(
-                          fontSize: 28,
+                          fontSize: 16,
                           fontWeight: FontWeight.bold,
                           color: isDark ? Colors.white : Colors.black87,
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Peak Baseline: ${widget.currency}${_peakDailyBaseline.toStringAsFixed(2)}/day',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: isDark ? Colors.white70 : Colors.black87,
-                            ),
-                          ),
-                          Text(
-                            'Logged Spend: ${widget.currency}${_totalSpent.toStringAsFixed(2)}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: isDark ? Colors.white70 : Colors.black87,
-                            ),
-                          ),
-                        ],
+                      TextButton.icon(
+                        style: TextButton.styleFrom(
+                          foregroundColor: const Color(0xFF10B981),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        ),
+                        onPressed: _openAddSubstance,
+                        icon: const Icon(Icons.add, size: 18),
+                        label: const Text('Add Substance', style: TextStyle(fontWeight: FontWeight.bold)),
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(height: 14),
+                  const SizedBox(height: 8),
 
-                // 4. Fully Interactive Monthly Income Impact Card
-                MonthlyIncomeImpactCard(
-                  substances: widget.substances,
-                  peakDailyBaseline: _peakDailyBaseline,
-                  currency: widget.currency,
-                  isDarkMode: isDark,
-                  onIncomeChanged: () => setState(() {}),
-                ),
+                  // 7. Substances List (with customizable icons/colors & no "+Log" button)
+                  ...widget.substances.map((substance) {
+                    return SubstanceCard(
+                      substance: substance,
+                      currency: widget.currency,
+                      onQuickAddUnit: () => _handleQuickAddUnit(substance),
+                      onTapCard: () => _openSubstanceDetail(substance),
+                    );
+                  }),
+                  const SizedBox(height: 20),
 
-                // 5. Tracked Substances Header & Add Button
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Tracked Substances',
+                  Center(
+                    child: Text(
+                      'HabitVault — Local Encrypted Storage & Private',
                       style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : Colors.black87,
+                        fontSize: 11,
+                        color: isDark ? Colors.white30 : Colors.black26,
                       ),
-                    ),
-                    TextButton.icon(
-                      style: TextButton.styleFrom(
-                        foregroundColor: const Color(0xFF10B981),
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      ),
-                      onPressed: _openAddSubstance,
-                      icon: const Icon(Icons.add, size: 18),
-                      label: const Text('Add Substance', style: TextStyle(fontWeight: FontWeight.bold)),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-
-                // 6. Substances List
-                ...widget.substances.map((substance) {
-                  return SubstanceCard(
-                    substance: substance,
-                    currency: widget.currency,
-                    onQuickAddUnit: () => _handleQuickAddUnit(substance),
-                    onLogCustomExpense: () => _handleLogCustomExpense(substance),
-                    onTapCard: () => _openSubstanceDetail(substance),
-                  );
-                }),
-
-                const SizedBox(height: 20),
-                Center(
-                  child: Text(
-                    'HabitVault — Local Encrypted Storage & Private',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: isDark ? Colors.white30 : Colors.black26,
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

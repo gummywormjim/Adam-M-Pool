@@ -90,7 +90,6 @@ class QuickUnitSlipDialog extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 24),
-            // Option 1: It was just a slip, keep my sober date
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF10B981),
@@ -105,12 +104,10 @@ class QuickUnitSlipDialog extends StatelessWidget {
                 children: [
                   Icon(Icons.favorite, size: 18),
                   SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      'It was just a slip, keep my sober date',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                    ),
+                  Text(
+                    'It was just a slip, keep my sober date',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                   ),
                 ],
               ),
