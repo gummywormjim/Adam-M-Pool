@@ -35,14 +35,12 @@ export const ExpenseLogModal: React.FC<ExpenseLogModalProps> = ({
   isDarkMode,
   onLogSaved,
 }) => {
-  if (!isOpen || !substance) return null;
-
   const unitCost =
-    substance.cost_per_unit != null && substance.cost_per_unit > 0
+    substance?.cost_per_unit != null && substance.cost_per_unit > 0
       ? substance.cost_per_unit
-      : substance.cost_per_day || 10;
-  const unitName = substance.unit_name || 'unit';
-  const peakDailyBaseline = substance.cost_per_day || 10;
+      : substance?.cost_per_day || 10;
+  const unitName = substance?.unit_name || 'unit';
+  const peakDailyBaseline = substance?.cost_per_day || 10;
 
   const [units, setUnits] = useState<number>(1);
   const [customAmount, setCustomAmount] = useState<string>(
@@ -52,6 +50,21 @@ export const ExpenseLogModal: React.FC<ExpenseLogModalProps> = ({
   const [selectedTag, setSelectedTag] = useState<TriggerTag | null>(null);
   const [note, setNote] = useState<string>('');
   const [savedReflection, setSavedReflection] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (substance) {
+      const uCost =
+        substance.cost_per_unit != null && substance.cost_per_unit > 0
+          ? substance.cost_per_unit
+          : substance.cost_per_day || 10;
+      setUnits(1);
+      setCustomAmount(uCost.toFixed(2));
+      setIsCustomMode(false);
+      setSelectedTag(null);
+      setNote('');
+      setSavedReflection(null);
+    }
+  }, [substance, isOpen]);
 
   const calculatedAmount = isCustomMode
     ? parseFloat(customAmount) || 0
@@ -65,6 +78,7 @@ export const ExpenseLogModal: React.FC<ExpenseLogModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!substance) return;
 
     const amount = calculatedAmount > 0 ? calculatedAmount : unitCost;
 
@@ -89,6 +103,8 @@ export const ExpenseLogModal: React.FC<ExpenseLogModalProps> = ({
     setSavedReflection(null);
     onClose();
   };
+
+  if (!isOpen || !substance) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm animate-fade-in">

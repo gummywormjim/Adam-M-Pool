@@ -37,27 +37,25 @@ export const EditSubstanceModal: React.FC<EditSubstanceModalProps> = ({
   onSubstanceUpdated,
   onSubstanceDeleted,
 }) => {
-  if (!isOpen || !substance) return null;
-
-  const [name, setName] = useState(substance.name);
-  const [iconName, setIconName] = useState(substance.icon_name);
-  const [colorHex, setColorHex] = useState(substance.color_hex);
-  const [frequency, setFrequency] = useState<FrequencyType>(substance.frequency || 'daily');
+  const [name, setName] = useState(substance?.name || '');
+  const [iconName, setIconName] = useState(substance?.icon_name || 'flame');
+  const [colorHex, setColorHex] = useState(substance?.color_hex || '#EF4444');
+  const [frequency, setFrequency] = useState<FrequencyType>(substance?.frequency || 'daily');
   const [costAmount, setCostAmount] = useState(() => {
-    const daily = substance.cost_per_day ?? substance.cost_per_unit ?? 10;
-    const freq = substance.frequency || 'daily';
+    const daily = substance?.cost_per_day ?? substance?.cost_per_unit ?? 10;
+    const freq = substance?.frequency || 'daily';
     const initialVal = freq === 'weekly' ? daily * 7 : freq === 'monthly' ? daily * 30 : daily;
     return initialVal.toFixed(2);
   });
   const [unitCost, setUnitCost] = useState<string>(() => {
-    const val = substance.cost_per_unit != null && substance.cost_per_unit > 0
+    const val = substance?.cost_per_unit != null && substance.cost_per_unit > 0
       ? substance.cost_per_unit
-      : substance.cost_per_day ?? 10;
+      : substance?.cost_per_day ?? 10;
     return val.toFixed(2);
   });
-  const [unitName, setUnitName] = useState<string>(substance.unit_name || 'unit');
+  const [unitName, setUnitName] = useState<string>(substance?.unit_name || 'unit');
   const [quitDate, setQuitDate] = useState<string>(
-    substance.quit_date ? substance.quit_date.slice(0, 10) : ''
+    substance?.quit_date ? substance.quit_date.slice(0, 10) : ''
   );
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [isSavedRecently, setIsSavedRecently] = useState(false);
@@ -94,7 +92,7 @@ export const EditSubstanceModal: React.FC<EditSubstanceModalProps> = ({
 
   const handleSave = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!name.trim()) return;
+    if (!substance || !name.trim()) return;
 
     const num = parseFloat(costAmount) || 10;
     const validatedDailyCost = Math.max(
@@ -124,12 +122,15 @@ export const EditSubstanceModal: React.FC<EditSubstanceModalProps> = ({
   };
 
   const handleDelete = async () => {
+    if (!substance) return;
     await sqliteStorage.deleteSubstance(substance.id);
     if (onSubstanceDeleted) {
       onSubstanceDeleted(substance.id);
     }
     onClose();
   };
+
+  if (!isOpen || !substance) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm animate-fade-in">

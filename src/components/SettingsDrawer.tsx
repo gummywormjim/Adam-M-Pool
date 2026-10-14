@@ -19,6 +19,8 @@ import {
   Heart,
   User,
   Sparkles,
+  MessageSquare,
+  ExternalLink,
 } from 'lucide-react';
 import { sqliteStorage, SQLITE_DDL_SCHEMA } from '../db/sqliteStorage';
 import { LikedAffirmationsView } from './LikedAffirmationsView';
@@ -58,8 +60,6 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
   onOpenDrive,
   onOpenTutorial,
 }) => {
-  if (!isOpen) return null;
-
   const [activeTab, setActiveTab] = useState<'profile' | 'settings' | 'schema' | 'helpline'>(initialTab);
 
   React.useEffect(() => {
@@ -143,6 +143,8 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
       setIsEditingName(false);
     }
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-xs animate-fade-in">
@@ -555,6 +557,27 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                   </div>
                   <p className="text-[11px] text-slate-400 mt-1">
                     Free, confidential emotional support and substance crisis care.
+                  </p>
+                </a>
+
+                <a
+                  href="https://chat.988lifeline.org"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#181A1E] hover:border-cyan-500/60 hover:bg-cyan-500/5 transition-colors"
+                >
+                  <div className="flex items-center justify-between text-xs font-bold text-cyan-600 dark:text-cyan-400">
+                    <span className="flex items-center gap-1.5">
+                      <MessageSquare className="w-3.5 h-3.5 shrink-0" />
+                      <span>988 Online Lifeline Chat</span>
+                    </span>
+                    <span className="flex items-center gap-1 text-[11px] font-semibold text-cyan-600 dark:text-cyan-400">
+                      <span>chat.988lifeline.org</span>
+                      <ExternalLink className="w-3 h-3 opacity-80 shrink-0" />
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Confidential 24/7 web chat with a trained crisis counselor via your browser.
                   </p>
                 </a>
 

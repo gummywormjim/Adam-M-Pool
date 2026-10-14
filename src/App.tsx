@@ -348,119 +348,137 @@ export default function App() {
         {/* --- MODALS & DRAWERS --- */}
 
         {/* Urge Relief & Alternative Activities Engine Modal */}
-        <UrgeModal
-          isOpen={isUrgeModalOpen}
-          onClose={() => setIsUrgeModalOpen(false)}
-          substances={substances}
-          isDarkMode={isDarkMode}
-          onUrgeSurfed={() => setDbRevision((r) => r + 1)}
-        />
+        {isUrgeModalOpen && (
+          <UrgeModal
+            isOpen={isUrgeModalOpen}
+            onClose={() => setIsUrgeModalOpen(false)}
+            substances={substances}
+            isDarkMode={isDarkMode}
+            onUrgeSurfed={() => setDbRevision((r) => r + 1)}
+          />
+        )}
 
         {/* Expense Logging Modal with Pre-filled Amount & Trigger Tagging */}
-        <ExpenseLogModal
-          isOpen={isExpenseModalOpen}
-          onClose={() => {
-            setIsExpenseModalOpen(false);
-            setActiveSubstanceForLog(null);
-          }}
-          substance={activeSubstanceForLog}
-          currency={currency}
-          isDarkMode={isDarkMode}
-          onLogSaved={() => setDbRevision((r) => r + 1)}
-        />
+        {isExpenseModalOpen && activeSubstanceForLog && (
+          <ExpenseLogModal
+            isOpen={isExpenseModalOpen}
+            onClose={() => {
+              setIsExpenseModalOpen(false);
+              setActiveSubstanceForLog(null);
+            }}
+            substance={activeSubstanceForLog}
+            currency={currency}
+            isDarkMode={isDarkMode}
+            onLogSaved={() => setDbRevision((r) => r + 1)}
+          />
+        )}
 
         {/* Onboarding & Add Substance Modal */}
-        <AddSubstanceModal
-          isOpen={isAddSubstanceOpen}
-          onClose={() => setIsAddSubstanceOpen(false)}
-          currency={currency}
-          isDarkMode={isDarkMode}
-          onSubstanceCreated={() => setDbRevision((r) => r + 1)}
-        />
+        {isAddSubstanceOpen && (
+          <AddSubstanceModal
+            isOpen={isAddSubstanceOpen}
+            onClose={() => setIsAddSubstanceOpen(false)}
+            currency={currency}
+            isDarkMode={isDarkMode}
+            onSubstanceCreated={() => setDbRevision((r) => r + 1)}
+          />
+        )}
 
         {/* Substance Detail & Ledger Modal */}
-        <SubstanceDetailModal
-          isOpen={isDetailModalOpen}
-          onClose={() => {
-            setIsDetailModalOpen(false);
-            setActiveSubstanceForDetail(null);
-          }}
-          substance={activeSubstanceForDetail}
-          currency={currency}
-          isDarkMode={isDarkMode}
-          onEdit={(sub) => setEditingSubstance(sub)}
-          onUpdated={() => setDbRevision((r) => r + 1)}
-        />
+        {isDetailModalOpen && activeSubstanceForDetail && (
+          <SubstanceDetailModal
+            isOpen={isDetailModalOpen}
+            onClose={() => {
+              setIsDetailModalOpen(false);
+              setActiveSubstanceForDetail(null);
+            }}
+            substance={activeSubstanceForDetail}
+            currency={currency}
+            isDarkMode={isDarkMode}
+            onEdit={(sub) => setEditingSubstance(sub)}
+            onUpdated={() => setDbRevision((r) => r + 1)}
+          />
+        )}
 
         {/* Real-Time Substance Editor Modal */}
-        <EditSubstanceModal
-          isOpen={!!editingSubstance}
-          onClose={() => setEditingSubstance(null)}
-          substance={editingSubstance}
-          currency={currency}
-          isDarkMode={isDarkMode}
-          onSubstanceUpdated={() => {
-            setEditingSubstance(null);
-            setDbRevision((r) => r + 1);
-          }}
-          onSubstanceDeleted={() => {
-            setEditingSubstance(null);
-            setDbRevision((r) => r + 1);
-          }}
-        />
+        {editingSubstance && (
+          <EditSubstanceModal
+            isOpen={!!editingSubstance}
+            onClose={() => setEditingSubstance(null)}
+            substance={editingSubstance}
+            currency={currency}
+            isDarkMode={isDarkMode}
+            onSubstanceUpdated={() => {
+              setEditingSubstance(null);
+              setDbRevision((r) => r + 1);
+            }}
+            onSubstanceDeleted={() => {
+              setEditingSubstance(null);
+              setDbRevision((r) => r + 1);
+            }}
+          />
+        )}
 
         {/* Settings, SQL Schema Viewer & Crisis Helpline Drawer */}
-        <SettingsDrawer
-          isOpen={isSettingsOpen}
-          onClose={() => setIsSettingsOpen(false)}
-          theme={theme}
-          onToggleTheme={handleToggleTheme}
-          currency={currency}
-          onCurrencyChange={handleCurrencyChange}
-          isBiometricsEnabled={isBiometricsEnabled}
-          onToggleBiometrics={handleToggleBiometrics}
-          currentPin={pin}
-          onPinChange={handlePinChange}
-          isDarkMode={isDarkMode}
-          onDataReset={() => setDbRevision((r) => r + 1)}
-          initialTab={drawerInitialTab}
-          onOpenDrive={() => {
-            setIsSettingsOpen(false);
-            setIsDriveModalOpen(true);
-          }}
-          onOpenTutorial={() => {
-            setIsSettingsOpen(false);
-            setIsTutorialOpen(true);
-          }}
-        />
+        {isSettingsOpen && (
+          <SettingsDrawer
+            isOpen={isSettingsOpen}
+            onClose={() => setIsSettingsOpen(false)}
+            theme={theme}
+            onToggleTheme={handleToggleTheme}
+            currency={currency}
+            onCurrencyChange={handleCurrencyChange}
+            isBiometricsEnabled={isBiometricsEnabled}
+            onToggleBiometrics={handleToggleBiometrics}
+            currentPin={pin}
+            onPinChange={handlePinChange}
+            isDarkMode={isDarkMode}
+            onDataReset={() => setDbRevision((r) => r + 1)}
+            initialTab={drawerInitialTab}
+            onOpenDrive={() => {
+              setIsSettingsOpen(false);
+              setIsDriveModalOpen(true);
+            }}
+            onOpenTutorial={() => {
+              setIsSettingsOpen(false);
+              setIsTutorialOpen(true);
+            }}
+          />
+        )}
 
         {/* Google Drive Cloud Vault Backup & Sync Modal */}
-        <GoogleDriveHubModal
-          isOpen={isDriveModalOpen}
-          onClose={() => setIsDriveModalOpen(false)}
-          isDarkMode={isDarkMode}
-          currency={currency}
-          onDataRestored={() => setDbRevision((r) => r + 1)}
-        />
+        {isDriveModalOpen && (
+          <GoogleDriveHubModal
+            isOpen={isDriveModalOpen}
+            onClose={() => setIsDriveModalOpen(false)}
+            isDarkMode={isDarkMode}
+            currency={currency}
+            onDataRestored={() => setDbRevision((r) => r + 1)}
+          />
+        )}
 
         {/* Quick Unit Slip Check-in Modal */}
-        <QuickUnitSlipModal
-          isOpen={!!slipModalSubstance}
-          onClose={() => setSlipModalSubstance(null)}
-          substance={slipModalSubstance}
-          currency={currency}
-          isDarkMode={isDarkMode}
-          onConfirm={handleConfirmUnitSlip}
-        />
+        {slipModalSubstance && (
+          <QuickUnitSlipModal
+            isOpen={!!slipModalSubstance}
+            onClose={() => setSlipModalSubstance(null)}
+            substance={slipModalSubstance}
+            currency={currency}
+            isDarkMode={isDarkMode}
+            onConfirm={handleConfirmUnitSlip}
+          />
+        )}
 
         {/* Skippable Onboarding Tutorial Modal */}
-        <OnboardingTutorialModal
-          isOpen={isTutorialOpen}
-          onClose={() => setIsTutorialOpen(false)}
-          currency={currency}
-          isDarkMode={isDarkMode}
-          onComplete={handleCompleteTutorial}
-        />
+        {isTutorialOpen && (
+          <OnboardingTutorialModal
+            isOpen={isTutorialOpen}
+            onClose={() => setIsTutorialOpen(false)}
+            currency={currency}
+            isDarkMode={isDarkMode}
+            onComplete={handleCompleteTutorial}
+          />
+        )}
 
         {/* Quick Log Floating Toast Notification */}
         {quickToast && (

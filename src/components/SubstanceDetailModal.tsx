@@ -40,30 +40,49 @@ export const SubstanceDetailModal: React.FC<SubstanceDetailModalProps> = ({
   onUpdated,
   onEdit,
 }) => {
-  if (!isOpen || !substance) return null;
-
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [frequency, setFrequency] = useState<FrequencyType>(substance.frequency || 'daily');
+  const [frequency, setFrequency] = useState<FrequencyType>(substance?.frequency || 'daily');
   const [costInput, setCostInput] = useState(() => {
-    const daily = substance.cost_per_day ?? 10;
-    const freq = substance.frequency || 'daily';
+    const daily = substance?.cost_per_day ?? 10;
+    const freq = substance?.frequency || 'daily';
     const initial = freq === 'weekly' ? daily * 7 : freq === 'monthly' ? daily * 30 : daily;
     return initial.toFixed(2);
   });
   const [unitCostInput, setUnitCostInput] = useState(() => {
-    const u = substance.cost_per_unit != null && substance.cost_per_unit > 0
+    const u = substance?.cost_per_unit != null && substance.cost_per_unit > 0
       ? substance.cost_per_unit
-      : substance.cost_per_day ?? 10;
+      : substance?.cost_per_day ?? 10;
     return u.toFixed(2);
   });
-  const [unitNameInput, setUnitNameInput] = useState<string>(substance.unit_name || 'unit');
+  const [unitNameInput, setUnitNameInput] = useState<string>(substance?.unit_name || 'unit');
   const [quitDateInput, setQuitDateInput] = useState(
-    substance.quit_date ? substance.quit_date.slice(0, 10) : ''
+    substance?.quit_date ? substance.quit_date.slice(0, 10) : ''
   );
   const [showEraseHistoryConfirm, setShowEraseHistoryConfirm] = useState(false);
   const [isErasingHistory, setIsErasingHistory] = useState(false);
   const [showSlipModal, setShowSlipModal] = useState(false);
-  const logs = sqliteStorage.getExpenseLogs(substance.id);
+
+  React.useEffect(() => {
+    if (substance) {
+      setFrequency(substance.frequency || 'daily');
+      const daily = substance.cost_per_day ?? 10;
+      const freq = substance.frequency || 'daily';
+      const initial = freq === 'weekly' ? daily * 7 : freq === 'monthly' ? daily * 30 : daily;
+      setCostInput(initial.toFixed(2));
+      const u = substance.cost_per_unit != null && substance.cost_per_unit > 0
+        ? substance.cost_per_unit
+        : substance.cost_per_day ?? 10;
+      setUnitCostInput(u.toFixed(2));
+      setUnitNameInput(substance.unit_name || 'unit');
+      setQuitDateInput(substance.quit_date ? substance.quit_date.slice(0, 10) : '');
+      setConfirmDelete(false);
+      setShowEraseHistoryConfirm(false);
+      setIsErasingHistory(false);
+      setShowSlipModal(false);
+    }
+  }, [substance, isOpen]);
+
+  const logs = substance ? sqliteStorage.getExpenseLogs(substance.id) : [];
 
   const numInput = parseFloat(costInput) || 0;
   const effectiveDaily =
@@ -88,6 +107,7 @@ export const SubstanceDetailModal: React.FC<SubstanceDetailModalProps> = ({
   };
 
   const handleSaveSettings = async () => {
+    if (!substance) return;
     const num = parseFloat(costInput) || 10;
     const dailyCost =
       frequency === 'daily' ? num : frequency === 'weekly' ? num / 7 : num / 30;
@@ -105,6 +125,7 @@ export const SubstanceDetailModal: React.FC<SubstanceDetailModalProps> = ({
   };
 
   const handleConfirmEraseHistory = async () => {
+    if (!substance) return;
     setIsErasingHistory(true);
     await sqliteStorage.clearAllExpenseLogs(substance.id);
     setIsErasingHistory(false);
@@ -113,6 +134,7 @@ export const SubstanceDetailModal: React.FC<SubstanceDetailModalProps> = ({
   };
 
   const handleResetStreak = async () => {
+    if (!substance) return;
     const todayIso = new Date().toISOString();
     await sqliteStorage.updateSubstance(substance.id, {
       quit_date: todayIso,
@@ -126,6 +148,7 @@ export const SubstanceDetailModal: React.FC<SubstanceDetailModalProps> = ({
   };
 
   const handleConfirmSlip = async (resetSoberDate: boolean) => {
+    if (!substance) return;
     const cost = parsedUnitCost > 0 ? parsedUnitCost : (effectiveDaily || 10);
     const unitLabel = unitNameInput.trim() || substance.unit_name || 'unit';
 
@@ -152,6 +175,7 @@ export const SubstanceDetailModal: React.FC<SubstanceDetailModalProps> = ({
   };
 
   const handleDeleteSubstance = async () => {
+    if (!substance) return;
     await sqliteStorage.deleteSubstance(substance.id);
     onUpdated();
     onClose();
@@ -163,6 +187,8 @@ export const SubstanceDetailModal: React.FC<SubstanceDetailModalProps> = ({
   };
 
   const totalSpent = logs.reduce((sum, item) => sum + item.amount_spent, 0);
+
+  if (!isOpen || !substance) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm animate-fade-in">

@@ -81,8 +81,6 @@ export const AddSubstanceModal: React.FC<AddSubstanceModalProps> = ({
   isDarkMode,
   onSubstanceCreated,
 }) => {
-  if (!isOpen) return null;
-
   const [name, setName] = useState('');
   const [iconName, setIconName] = useState('flame');
   const [colorHex, setColorHex] = useState('#EF4444');
@@ -128,6 +126,8 @@ export const AddSubstanceModal: React.FC<AddSubstanceModalProps> = ({
     onSubstanceCreated(newSubstance);
     onClose();
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
